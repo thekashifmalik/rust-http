@@ -5,6 +5,7 @@ extern crate url;
 use std::io::net::ip::{SocketAddr, Ipv4Addr};
 use std::io::{BufferedStream, TcpStream};
 use std::from_str::FromStr;
+use std::fmt::{Show, Formatter, FormatError};
 
 use self::url::Url;
 use std::io::{IoResult, IoError};
@@ -45,6 +46,7 @@ mod methods {
 static HTTP_VERSION: &'static str = "1.1";
 static CLRF: &'static str = "\r\n";
 static DEFAULT_HTTP_PORT: u16 = 80;
+static DEFAULT_HTTPS_PORT: u16 = 443;
 
 
 enum StartLine {
@@ -87,6 +89,7 @@ struct RequestLine {
     method: methods::Method,
     path: String,
 }
+
 
 #[deriving(Show)]
 struct StatusLine {
@@ -140,7 +143,7 @@ impl Address {
 
         let port = match url.port() {
             Some(x) => x,
-            None => if url.scheme.as_slice() == "https" { 443 } else { 80 },
+            None => if url.scheme.as_slice() == "https" { DEFAULT_HTTPS_PORT } else { DEFAULT_HTTP_PORT },
         };
 
         Ok(Address{
@@ -150,26 +153,48 @@ impl Address {
     }
 }
 
+
+struct Header {
+    key: String,
+    value: String,
+}
+
+impl Show for Header {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+        write!(fmt, "{}: {}", self.key, self.value)
+    }
+}
+
+struct Headers(Vec<Header>);
+
+impl Show for Headers {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+        let Headers(ref vector) = *self;
+        let mut result = Ok(());
+        for header in vector.iter() {
+            let mut result = try!(write!(fmt, "{}\n", *header));
+        }
+        result
+    }
+}
+
+
 #[deriving(Show)]
 struct Request {
 //     address: Address,
 //     request_line: RequestLine,
-    method: String,
+    method: methods::Method,
     path: String,
+    // headers: Vec<Header>
 }
 
 impl Request {
-    fn new(method: methods::Method, url: &Url) -> Result<Request, ()> {
-        let path = match url.path() {
-            Some(x) => format!("/{}", x.connect("/")),
-            None => return Err(()),
-        };
-
+    fn new(method: methods::Method, path: String) -> Result<Request, ()> {
         // let request_line = RequestLine;
 
         Ok(Request {
-            method: method.to_string(),
-            path: path.to_string(),
+            method: method,
+            path: path,
         })
     }
 
@@ -208,7 +233,7 @@ fn read_to_crlf(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>> {
 fn read_to_headers(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>> {
     let read_upto = try!(read_to_crlf(stream));
 
-    if read_upto.as_slice() == b"\r\n" {
+    if read_upto.as_slice() == CLRF.as_bytes() {
         return Ok(read_upto);
     }
 
@@ -216,7 +241,7 @@ fn read_to_headers(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>> 
 
     let read_upto = read_upto.append(next_char.as_slice());
 
-    if next_char.as_slice() == b"\r\n" {
+    if next_char.as_slice() == CLRF.as_bytes() {
         return Ok(read_upto);
 
     } else {
@@ -224,26 +249,36 @@ fn read_to_headers(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>> 
     }
 }
 
+
 pub fn get(url_string: &str) -> Result<Response, ()> {
 
-    let url = match Url::parse(url_string) {
-        Ok(x) => x,
-        Err(_) => return Err(()),
+    let url = try!(Url::parse(url_string).map_err(|_| {()}));
+
+    let headers = Headers(vec![
+        Header {key: "HOST".to_string(), value: url.domain().unwrap().to_string()},
+    ]);
+
+    println!("{}", headers);
+
+    let path = match url.path() {
+        Some(x) => format!("/{}", x.connect("/")),
+        None => return Err(()),
     };
 
-    let address = Address::new(&url).unwrap();
-    let request = Request::new(methods::GET, &url).unwrap();
+    let address = try!(Address::new(&url));
+
+    let request = Request::new(methods::GET, path).ok().expect("error making request!");
+
     println!("{}", address);
     println!("{}", request);
 
     let mut stream = BufferedStream::new(
-        TcpStream::connect(address.host.as_slice(), address.port).unwrap()
+        try!(TcpStream::connect(address.host.as_slice(), address.port).map_err(|_| {()}))
     );
 
     request.send(&mut stream);
 
 
     let resp = Response::new(stream);
-    // println!("{}", resp);
     return resp;
 }
