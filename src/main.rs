@@ -2,7 +2,7 @@ mod http;
 
 
 fn main() {
-    // let headers = ("kashif", "b2tmanb2tman");
+
 	let response = http::get(
         "http://www.google.com",
     ).ok().expect("There was a problem making the request");
