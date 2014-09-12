@@ -7,26 +7,17 @@ use std::io::{BufferedStream, TcpStream};
 use std::from_str::FromStr;
 use std::fmt::{Show, Formatter, FormatError};
 
-use self::url::Url;
 use std::io::{IoResult, IoError};
 use std::io::Stream;
 
+use self::headers::{Header, Headers};
+use self::url::Url;
 
-mod methods {
 
-    #[deriving(Show)]
-    pub enum Method {
-        GET,
-        HEAD,
-        POST,
-        PUT,
-        DELETE,
-        CONNECT,
-        OPTIONS,
-        TRACE,
-    }
+mod methods;
+mod headers;
 
-}
+
 
 static HTTP_VERSION: &'static str = "1.1";
 static CLRF: &'static str = "\r\n";
@@ -58,6 +49,17 @@ impl Response {
             Ok(x) => x,
             Err(_) => return Err(()),
         };
+
+        let headers: Headers = match from_str(header_string.as_slice()) {
+            Some(x) => x,
+            None => return Err(()),
+        };
+
+        let Headers(h1) = headers;
+
+        println!("{}", h1[0]);
+        println!("{}", h1[1]);
+        println!("{}", h1[2]);
 
         let text_bytes = stream.read_to_end().unwrap();
 
@@ -119,49 +121,60 @@ struct Address {
     port: u16,
 }
 
-impl Address {
-    fn new(url: &Url) -> Result<Address, ()> {
-        let host = match url.domain() {
+
+#[deriving(Show)]
+struct HttpUrl {
+    scheme: String,
+    domain: String,
+    path: String,
+    port: Option<u16>,
+}
+
+impl HttpUrl {
+    fn from_url(url: &Url) -> Result<HttpUrl, ()> {
+        // Check scheme
+        if url.scheme.as_slice() != "http" && url.scheme.as_slice() != "https" {
+            return Err(());
+        }
+
+        // Check domain
+        let domain = match url.domain() {
             Some(x) => (x),
             None => return Err(()),
         };
 
-        let port = match url.port() {
-            Some(x) => x,
-            None => if url.scheme.as_slice() == "https" { DEFAULT_HTTPS_PORT } else { DEFAULT_HTTP_PORT },
+        // Create path
+        let path = match url.path() {
+            Some(path_vector) => format!("/{}", path_vector.connect("/")),
+            None => "/".to_string(),
         };
 
-        Ok(Address{
-            host: host.to_string(),
-            port: port,
+
+        return Ok(HttpUrl{
+            scheme: url.scheme.clone(),
+            domain: domain.to_string(),
+            path: path,
+            port: url.port(),
         })
     }
 }
 
+impl Address {
+    fn new(http_url: &HttpUrl) -> Address {
 
-struct Header {
-    key: String,
-    value: String,
-}
+        let port = match http_url.port {
+            Some(x) => x,
+            None => if http_url.scheme.as_slice() == "https" { DEFAULT_HTTPS_PORT } else { DEFAULT_HTTP_PORT },
+        };
 
-impl Show for Header {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
-        write!(fmt, "{}: {}", self.key, self.value)
-    }
-}
-
-struct Headers(Vec<Header>);
-
-impl Show for Headers {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
-        let Headers(ref vector) = *self;
-        let mut result = Ok(());
-        for header in vector.iter() {
-            let mut result = try!(write!(fmt, "{}\n", *header));
+        Address {
+            host: http_url.domain.to_string(),
+            port: port,
         }
-        result
     }
 }
+
+
 
 
 #[deriving(Show)]
@@ -170,14 +183,31 @@ struct Request {
 //     request_line: RequestLine,
     method: methods::Method,
     path: String,
-    // headers: Vec<Header>
+    headers: Headers
+}
+
+
+fn make_default_headers(http_url: &HttpUrl) -> Headers {
+    let port = match http_url.port {
+        Some(p) => p.to_string(),
+        None => "".to_string(),
+    };
+
+    let host = format!("{}{}", http_url.domain, port);
+
+    Headers(
+        vec![
+            Header {key: "HOST".to_string(), value: host},
+        ]
+    )
 }
 
 impl Request {
-    fn new(method: methods::Method, path: String) -> Result<Request, ()> {
+    fn new(method: methods::Method, path: String, headers: Headers) -> Result<Request, ()> {
         // let request_line = RequestLine;
 
         Ok(Request {
+            headers: headers,
             method: method,
             path: path,
         })
@@ -186,16 +216,18 @@ impl Request {
 
     fn to_bytes(&self) -> Vec<u8> {
         let string = format!(
-            "{} {} HTTP/1.0\n\n",
+            "{} {} HTTP/1.0\n{}\n",
             self.method,
             self.path,
+            self.headers,
         );
+        println!("==\n{}==", string);
         return string.into_bytes()
     }
 
     fn send(&self, stream: &mut BufferedStream<TcpStream>) {
-        stream.write(self.to_bytes().as_slice());
-        stream.flush();
+        stream.write(self.to_bytes().as_slice()).ok().expect("Error writing to socket!");
+        stream.flush().ok().expect("Error writing to socket!");
     }
 }
 
@@ -235,24 +267,28 @@ fn read_to_headers(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>> 
 }
 
 
+// enum HttpVersion {
+//     HTTP1.1
+// }
+
+
+// pub fn http(method: methods::Method, url: HttpUrl, headers: Headers, payload:, version: HttpVersion) -> ret {
+//     // add code here
+// }
+
+
 pub fn get(url_string: &str) -> Result<Response, ()> {
 
     let url = try!(Url::parse(url_string).map_err(|_| {()}));
+    let http_url = try!(HttpUrl::from_url(&url));
+    println!("{}", http_url);
 
-    let headers = Headers(vec![
-        Header {key: "HOST".to_string(), value: url.domain().unwrap().to_string()},
-    ]);
-
+    let headers = make_default_headers(&http_url);
     println!("{}", headers);
 
-    let path = match url.path() {
-        Some(x) => format!("/{}", x.connect("/")),
-        None => return Err(()),
-    };
+    let address = Address::new(&http_url);
 
-    let address = try!(Address::new(&url));
-
-    let request = Request::new(methods::GET, path).ok().expect("error making request!");
+    let request = Request::new(methods::GET, http_url.path, headers).ok().expect("error making request!");
 
     println!("{}", address);
     println!("{}", request);
