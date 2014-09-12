@@ -26,21 +26,6 @@ mod methods {
         TRACE,
     }
 
-    // impl Show for Method {
-    //     pub fn to_string(self) -> String {
-    //         match self {
-    //             GET => "GdET".to_string(),
-    //             HEAD => "HEAD".to_string(),
-    //             POST => "POST".to_string(),
-    //             PUT => "PUT".to_string(),
-    //             DELETE => "DELETE".to_string(),
-    //             CONNECT => "CONNECT".to_string(),
-    //             OPTIONS => "OPTIONS".to_string(),
-    //             TRACE => "TRACE".to_string(),
-    //         }
-    //     }
-    // }
-
 }
 
 static HTTP_VERSION: &'static str = "1.1";
