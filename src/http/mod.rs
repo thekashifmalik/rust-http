@@ -1,14 +1,18 @@
-
 extern crate url;
+extern crate serialize;
 
 
 use std::io::net::ip::{SocketAddr, Ipv4Addr};
 use std::io::{BufferedStream, TcpStream};
-use std::from_str::FromStr;
+use std::from_str::{from_str, FromStr};
 use std::fmt::{Show, Formatter, FormatError};
+use std::from_str::;
 
 use std::io::{IoResult, IoError};
 use std::io::Stream;
+
+use self::serialize::json::Json;
+
 
 use self::headers::{Header, Headers};
 use self::url::Url;
@@ -33,7 +37,8 @@ enum StartLine {
 #[deriving(Show)]
 struct Response {
     pub status_code: uint,
-    pub text: String
+    pub text: String,
+    pub headers: Headers,
 }
 
 impl Response {
@@ -41,7 +46,7 @@ impl Response {
         let first_line = stream.read_line().ok().expect("error reading from stream!");
         let status_line: StatusLine = from_str(first_line.as_slice()).expect("error parsing status line!");
 
-        println!("{}", status_line);
+        // println!("{}", status_line);
 
         let header_bytes = read_to_headers(&mut stream).unwrap();
 
@@ -55,19 +60,23 @@ impl Response {
             None => return Err(()),
         };
 
-        let Headers(h1) = headers;
-
-        println!("{}", h1[0]);
-        println!("{}", h1[1]);
-        println!("{}", h1[2]);
+        // println!("{}", headers.vector[0]);
+        // println!("{}", headers.vector[1]);
+        // println!("{}", headers.vector[2]);
 
         let text_bytes = stream.read_to_end().unwrap();
 
         Ok(Response {
             status_code: status_line.status_code,
             text: String::from_utf8(text_bytes).unwrap(),
+            headers: headers,
         })
 
+    }
+
+    pub fn json(&self) -> Option<Json> {
+        let raw_json = "{\"e\":2.71,\"pi\":3.14}";
+        from_str(raw_json)
     }
 }
 
@@ -195,11 +204,12 @@ fn make_default_headers(http_url: &HttpUrl) -> Headers {
 
     let host = format!("{}{}", http_url.domain, port);
 
-    Headers(
+    Headers::from_vector(
         vec![
             Header {key: "HOST".to_string(), value: host},
         ]
     )
+
 }
 
 impl Request {
@@ -221,7 +231,7 @@ impl Request {
             self.path,
             self.headers,
         );
-        println!("==\n{}==", string);
+        println!("Sent:\n{}EOF", string);
         return string.into_bytes()
     }
 
@@ -281,17 +291,17 @@ pub fn get(url_string: &str) -> Result<Response, ()> {
 
     let url = try!(Url::parse(url_string).map_err(|_| {()}));
     let http_url = try!(HttpUrl::from_url(&url));
-    println!("{}", http_url);
+    // println!("{}", http_url);
 
     let headers = make_default_headers(&http_url);
-    println!("{}", headers);
+    // println!("{}", headers);
 
     let address = Address::new(&http_url);
 
     let request = Request::new(methods::GET, http_url.path, headers).ok().expect("error making request!");
 
-    println!("{}", address);
-    println!("{}", request);
+    // println!("{}", address);
+    // println!("{}", request);
 
     let mut stream = BufferedStream::new(
         try!(TcpStream::connect(address.host.as_slice(), address.port).map_err(|_| {()}))

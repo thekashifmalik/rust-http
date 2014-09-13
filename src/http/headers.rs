@@ -1,6 +1,6 @@
 use std::from_str::FromStr;
 use std::fmt::{Show, Formatter, FormatError};
-
+use std::ascii::AsciiExt;
 
 pub struct Header {
     pub key: String,
@@ -29,12 +29,38 @@ impl FromStr for Header {
     }
 }
 
-pub struct Headers(pub Vec<Header>);
+pub struct Headers {
+    pub vector: Vec<Header>
+}
+
+
+impl Headers {
+    pub fn from_vector(headers_vector: Vec<Header>) -> Headers {
+        Headers {vector: headers_vector}
+    }
+
+    pub fn find(&self, key: &str) -> Option<&Header> {
+        for header in self.vector.iter() {
+
+            let lower_case_target_key = key.to_ascii_lower();
+            let lower_case_key = header.key.as_slice().to_ascii_lower();
+
+            if lower_case_key.as_slice() == lower_case_target_key.as_slice() {
+                return Some(header);
+            }
+        }
+        return None;
+    }
+
+    pub fn get(&self, key: &str) -> &Header {
+        self.find(key).expect("")
+    }
+}
+
 
 impl Show for Headers {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
-        let Headers(ref vector) = *self;
-        for header in vector.iter() {
+        for header in self.vector.iter() {
             try!(write!(fmt, "{}\n", *header));
         }
         Ok(())
@@ -49,9 +75,9 @@ impl FromStr for Headers {
         if header_string_vector.len() == 0 {
             return None;
         }
-        let headers_vector: Vec<Header> = header_string_vector.iter().filter_map(|&x| { from_str(x) }).collect();
 
-        Some(Headers(headers_vector))
+        let headers_vector: Vec<Header> = header_string_vector.iter().filter_map(|&x| { from_str(x) }).collect();
+        Some(Headers::from_vector(headers_vector))
     }
 }
 
