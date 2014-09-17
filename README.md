@@ -1,3 +1,9 @@
+HTTP Library for Rust
+=====================
+
+A simple HTTP library for rust. *Because teepee is taking a while.*
+
+```rust
 extern crate http;
 
 
@@ -9,9 +15,8 @@ fn main() {
     };
 
     if response.status_code as int == 200 {
-        println!("Time according to Google: {}", response.headers.get("date"))
+        println!("Time according to Google: {}", response.headers.find("date"))
     }
-
-    // println!("URL:\n----\n{}\n----", response.url)
-    // println!("Headers:\n----\n{}----", response.headers)
 }
+
+```

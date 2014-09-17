@@ -23,7 +23,7 @@ impl FromStr for Header {
         }
 
         Some(Header {
-            key: header_vector[0].trim_left().to_string(),
+            key: header_vector[0].trim_left().to_ascii_lower(),
             value: header_vector[1].trim().to_string(),
         })
     }
@@ -39,20 +39,19 @@ impl Headers {
         Headers {vector: headers_vector}
     }
 
-    pub fn find(&self, key: &str) -> Option<&Header> {
+    pub fn find(&self, key: &str) -> Option<&str> {
         for header in self.vector.iter() {
 
             let lower_case_target_key = key.to_ascii_lower();
-            let lower_case_key = header.key.as_slice().to_ascii_lower();
 
-            if lower_case_key.as_slice() == lower_case_target_key.as_slice() {
-                return Some(header);
+            if lower_case_target_key == header.key {
+                return Some(header.value.as_slice());
             }
         }
         return None;
     }
 
-    pub fn get(&self, key: &str) -> &Header {
+    pub fn get(&self, key: &str) -> &str {
         self.find(key).expect("")
     }
 }
@@ -61,7 +60,7 @@ impl Headers {
 impl Show for Headers {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
         for header in self.vector.iter() {
-            try!(write!(fmt, "{}\n", *header));
+            try!(write!(fmt, "{}\r\n", *header));
         }
         Ok(())
     }
