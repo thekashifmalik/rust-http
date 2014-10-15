@@ -1,39 +1,28 @@
 
-use std::from_str::{ from_str, FromStr };
+use std::from_str::from_str;
 use std::str::from_utf8;
 use super::headers::Headers;
-use super::transport::{HttpHeaderBytes};
+use super::transport::{HttpHeaderBytes, HttpMessageBytes};
 use std::slice::ImmutableSlice;
 
+
 #[deriving(Show)]
-enum StartLine {
+pub struct StartLine(pub Vec<u8>, pub Vec<u8>, pub Vec<u8>);
 
-    RequestLine {
-        method: Vec<u8>,
-        path: Vec<u8>,
-        http_version: Vec<u8>,
-    },
-
-    RawStatusLine {
-        status_code: Vec<u8>,
-        reason_phrase: Vec<u8>,
-        http_version: Vec<u8>,
-    },
+#[deriving(Show)]
+pub struct HttpHeader {
+    pub start_line: StartLine,
+    pub headers: Headers,
 }
 
 #[deriving(Show)]
-struct HttpHeader {
-    start_line: StartLine,
-    headers: Headers,
-}
-
-struct HttpMessage {
-    header: HttpHeader,
-    body: Vec<u8>,
+pub struct HttpMessage {
+    pub header: HttpHeader,
+    pub body: Vec<u8>,
 }
 
 
-pub fn parse_response_header(header: HttpHeaderBytes) -> Option<HttpHeader> {
+pub fn parse_header(header: HttpHeaderBytes) -> Option<HttpHeader> {
     let is_space_byte = | byte: &u8 | { if *byte == ' ' as u8 { true } else { false } };
     let status_vector: Vec<&[u8]> = header.start_line.as_slice().splitn(2, is_space_byte).collect();
 
@@ -41,16 +30,23 @@ pub fn parse_response_header(header: HttpHeaderBytes) -> Option<HttpHeader> {
         return None;
     }
 
-    let status_line = RawStatusLine {
-        status_code: Vec::from_slice(status_vector[1]),
-        reason_phrase: Vec::from_slice(status_vector[2]),
-        http_version: Vec::from_slice(status_vector[0]),
-    };
+    let status_line = StartLine(
+        status_vector[1].to_vec(),
+        status_vector[2].to_vec(),
+        status_vector[0].to_vec(),
+    );
 
     let headers: Headers = optional!(from_str(optional!(from_utf8(header.headers.as_slice()))));
 
     Some(HttpHeader {
         start_line: status_line,
         headers: headers,
+    })
+}
+
+pub fn parse_response(message_bytes: HttpMessageBytes) -> Option<HttpMessage> {
+    Some(HttpMessage {
+        header: optional!(parse_header(message_bytes.header)),
+        body: message_bytes.body,
     })
 }

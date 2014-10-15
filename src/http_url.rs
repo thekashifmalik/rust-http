@@ -17,7 +17,7 @@ impl HttpUrl {
 
     pub fn from_str(url_string: &str) -> Result<HttpUrl, ()> {
         // Parse URL
-        let mut url = try!(Url::parse(url_string).map_err(|_| {()}));
+        let url = try!(Url::parse(url_string).map_err(|_| {()}));
 
         // Check scheme
         if url.scheme.as_slice() != "http" && url.scheme.as_slice() != "https" {

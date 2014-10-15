@@ -7,7 +7,6 @@ use std::io::{
     IoResult,
 };
 
-
 mod readers;
 
 
@@ -42,6 +41,7 @@ impl Transaction {
     pub fn write(&mut self, payload: &[u8]) -> IoResult<()> {
         // Write flush an return
         try!(self.stream.write(payload));
+
         try!(self.stream.flush());
         Ok(())
     }

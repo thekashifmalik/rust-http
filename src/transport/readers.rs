@@ -4,8 +4,7 @@ use std::io::{
     IoResult,
 };
 
-
-static CRLF: &'static [u8] = b"\r\n";
+use CRLF;
 
 
 /// Recursive function to read up to CRLF from a stream
@@ -17,36 +16,32 @@ pub fn read_to_crlf(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>>
     let next_byte = try!(stream.read_byte());
     read_bytes.push(next_byte);
 
-    // Reached end of CRLF
-    if next_byte == CRLF[1] {
-        Ok(read_bytes)
-
     // Keep searching (Recursion)
-    } else {
-        Ok(read_bytes.append(try!(read_to_crlf(stream)).as_slice()))
+    if next_byte != CRLF[1] {
+        read_bytes.extend(try!(read_to_crlf(stream)).into_iter());
     }
+
+    Ok(read_bytes)
 }
 
 /// Recursive function to read an http header from a stream
 pub fn read_to_header_end(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>> {
     // Read to CRLF
-    let read_bytes = try!(read_to_crlf(stream));
+    let mut read_bytes = try!(read_to_crlf(stream));
 
     // Reached end of header
-    if read_bytes.as_slice() == CRLF {
+    if read_bytes[] == CRLF {
         return Ok(read_bytes);
     }
 
     // Read to next CRLF and add to read bytes
     let next_bytes = try!(read_to_crlf(stream));
-    let read_bytes = read_bytes.append(next_bytes.as_slice());
-
-    // Reached end of header
-    if next_bytes.as_slice() == CRLF {
-        Ok(read_bytes)
+    read_bytes.extend(next_bytes.iter().map(|&x| x));
 
     // Keep searching (Recursion)
-    } else {
-        Ok(read_bytes.append(try!(read_to_header_end(stream)).as_slice()))
+    if next_bytes[] != CRLF {
+        read_bytes.extend(try!(read_to_header_end(stream)).into_iter());
     }
+
+    Ok(read_bytes)
 }
