@@ -9,9 +9,8 @@ use std::io::{
 
 mod readers;
 
-
-/// Manager the state of an HTTP transaction
-pub struct Transaction {
+/// Manager of an HTTP connection
+pub struct Connection {
     pub stream: BufferedStream<TcpStream>,
     pub header: Option<HttpHeaderBytes>,
 }
@@ -29,10 +28,10 @@ pub struct HttpMessageBytes {
     pub body: Vec<u8>,
 }
 
-impl Transaction {
-    pub fn new(host: &str,port: u16) -> IoResult<Transaction> {
+impl Connection {
+    pub fn new(host: &str, port: u16) -> IoResult<Connection> {
         let tcp_stream = try!(TcpStream::connect(host, port));
-        Ok(Transaction {
+        Ok(Connection {
             stream: BufferedStream::new(tcp_stream),
             header: None
         })

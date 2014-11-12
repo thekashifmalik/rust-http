@@ -1,4 +1,4 @@
-#![feature(macro_rules, struct_variant, slicing_syntax)]
+#![feature(macro_rules, struct_variant, slicing_syntax, phase)]
 
 extern crate serialize;
 extern crate time;
@@ -7,7 +7,7 @@ use std::from_str::from_str;
 use std::str::from_utf8;
 
 pub use headers::{ Header, Headers };
-use transport::Transaction;
+use transport::Connection;
 use self::serialize::json::Json;
 use self::http_url::HttpUrl;
 
@@ -42,7 +42,7 @@ impl Response {
         let status_code = optional!(status_codes::from_bytes(msg.header.start_line.0[]));
 
         Some(Response {
-            url: http_url.url.clone(),
+            url: http_url.url.to_string(),
             status_code: status_code,
             text: String::from_utf8(msg.body).unwrap(),
             headers: msg.header.headers,
@@ -117,7 +117,7 @@ fn make_request(method: methods::Method, http_url: &HttpUrl) -> Result<Response,
         None => if http_url.scheme.as_slice() == "https" { DEFAULT_HTTPS_PORT } else { DEFAULT_HTTP_PORT },
     };
 
-    let mut client = try!(Transaction::new(http_url.host[], port).map_err(|_| {()}));
+    let mut client = try!(Connection::new(http_url.host[], port).map_err(|_| {()}));
 
     // Send data
     let payload = request.to_bytes();

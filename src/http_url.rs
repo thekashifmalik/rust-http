@@ -4,8 +4,8 @@ use self::url::Url;
 
 
 #[deriving(Show)]
-pub struct HttpUrl {
-    pub url: String,
+pub struct HttpUrl<'a> {
+    pub url: &'a str,
     pub scheme: String,
     pub host: String,
     pub port: Option<u16>,
@@ -13,7 +13,7 @@ pub struct HttpUrl {
 }
 
 
-impl HttpUrl {
+impl<'a> HttpUrl<'a> {
 
     pub fn from_str(url_string: &str) -> Result<HttpUrl, ()> {
         // Parse URL
@@ -25,7 +25,10 @@ impl HttpUrl {
         }
 
         // Check host
-        let host = optional_try!(url.domain());
+        let host = match url.domain() {
+            Some(h) => h.into_string(),
+            None => return Err(()),
+        };
 
         // Create and format path
         let path = match url.path() {
@@ -33,13 +36,12 @@ impl HttpUrl {
             None => "/".to_string(),
         };
 
-        // TODO: Allocation
         Ok(HttpUrl {
-            url: url_string.to_string(),
-            scheme: url.scheme.clone(),
-            host: host.to_string(),
-            path: path,
+            url: url_string,
+            host: host,
             port: url.port(),
+            scheme: url.scheme,
+            path: path,
         })
     }
 }
