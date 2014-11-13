@@ -6,6 +6,7 @@ use std::io::{
     TcpStream,
     IoResult,
 };
+use std::io::net::ip::ToSocketAddr;
 
 mod readers;
 
@@ -29,8 +30,8 @@ pub struct HttpMessageBytes {
 }
 
 impl Connection {
-    pub fn new(host: &str, port: u16) -> IoResult<Connection> {
-        let tcp_stream = try!(TcpStream::connect(host, port));
+    pub fn new<A: ToSocketAddr>(address: A) -> IoResult<Connection> {
+        let tcp_stream = try!(TcpStream::connect(address));
         Ok(Connection {
             stream: BufferedStream::new(tcp_stream),
             header: None

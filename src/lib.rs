@@ -21,10 +21,12 @@ mod parser;
 
 
 
-const HTTP_VERSION: &'static str = "1.0";
+const HTTP_VERSION: &'static [u8] = b"HTTP/1.0";
+
 const DEFAULT_HTTP_PORT: u16 = 80;
 const DEFAULT_HTTPS_PORT: u16 = 443;
 const CRLF: &'static [u8] = b"\r\n";
+const STATUS_LINE_SEPERATOR: &'static [u8] = b" ";
 
 
 #[deriving(Show)]
@@ -39,7 +41,7 @@ pub struct Response {
 impl Response {
 
     fn from_bytes(http_url: &HttpUrl, msg: parser::HttpMessage) -> Option<Response> {
-        let status_code = optional!(status_codes::from_bytes(msg.header.start_line.0[]));
+        let status_code = optional!(status_codes::StatusCode::from_bytes(msg.header.start_line.0[]));
 
         Some(Response {
             url: http_url.url.to_string(),
@@ -89,35 +91,40 @@ impl Request {
         Request {
             headers: headers,
             method: method,
-            path: http_url.path.as_slice().to_string(),
+            path: http_url.path[].to_string(),
         }
     }
 
 
     fn to_bytes(&self) -> Vec<u8> {
-        let string = format!(
-            "{} {} HTTP/{}\r\n{}\r\n",
-            self.method,
-            self.path,
-            HTTP_VERSION,
-            self.headers,
-        );
-        // println!("Sent:\n{}", string);
-        return string.into_bytes()
+        let mut buffer = Vec::new();
+        buffer.push_all(self.method.to_bytes());
+        buffer.push_all(STATUS_LINE_SEPERATOR);
+        buffer.push_all(self.path.clone().into_bytes()[]);
+        buffer.push_all(STATUS_LINE_SEPERATOR);
+        buffer.push_all(HTTP_VERSION);
+        buffer.push_all(CRLF);
+        buffer.push_all(self.headers.to_string().into_bytes()[]);
+        buffer.push_all(CRLF);
+
+        // println!("Sent:\n{}", buffer.len());
+        return buffer
     }
 
 }
 
 
-fn make_request(method: methods::Method, http_url: &HttpUrl) -> Result<Response, ()>{
-    let request = Request::new(method, http_url);
+fn make_request(method: methods::Method, address: &str) -> Result<Response, ()>{
+
+    let http_url = try!(HttpUrl::from_str(address));
+    let request = Request::new(method, &http_url);
 
     let port = match http_url.port {
         Some(x) => x,
         None => if http_url.scheme.as_slice() == "https" { DEFAULT_HTTPS_PORT } else { DEFAULT_HTTP_PORT },
     };
 
-    let mut client = try!(Connection::new(http_url.host[], port).map_err(|_| {()}));
+    let mut client = try!(Connection::new((http_url.host[], port)).map_err(|_| {()}));
 
     // Send data
     let payload = request.to_bytes();
@@ -132,7 +139,7 @@ fn make_request(method: methods::Method, http_url: &HttpUrl) -> Result<Response,
     let http_msg = optional_try!(parser::parse_response(msg_bytes));
 
     // Create response
-    let response = match Response::from_bytes(http_url, http_msg) {
+    let response = match Response::from_bytes(&http_url, http_msg) {
         Some(a) => Ok(a),
         None => Err(()),
     };
@@ -143,12 +150,10 @@ fn make_request(method: methods::Method, http_url: &HttpUrl) -> Result<Response,
 
 
 
-pub fn get(url_string: &str) -> Result<Response, ()> {
-    let http_url = try!(HttpUrl::from_str(url_string));
-    make_request(methods::GET, &http_url)
+pub fn get(address: &str) -> Result<Response, ()> {
+    make_request(methods::GET, address)
 }
 
-pub fn post(url_string: &str) -> Result<Response, ()> {
-    let http_url = try!(HttpUrl::from_str(url_string));
-    make_request(methods::POST, &http_url)
+pub fn post(address: &str) -> Result<Response, ()> {
+    make_request(methods::POST, address)
 }
