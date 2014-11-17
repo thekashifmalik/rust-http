@@ -2,7 +2,7 @@
 use std::from_str::from_str;
 use std::str::from_utf8;
 use super::headers::Headers;
-use super::transport::{HttpHeaderBytes, HttpMessageBytes};
+use transactions::{HttpHeaderBytes, HttpMessageBytes};
 
 
 #[deriving(Show)]

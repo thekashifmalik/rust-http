@@ -1,14 +1,13 @@
 use std::io::{
-    BufferedStream,
-    TcpStream,
     IoResult,
+    Buffer,
 };
 
 use CRLF;
 
 
 /// Recursive function to read up to CRLF from a stream
-pub fn read_to_crlf(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>> {
+pub fn read_to_crlf<A: Buffer>(stream: &mut A) -> IoResult<Vec<u8>> {
     // Read to start of CRLF
     let mut read_bytes = try!(stream.read_until(CRLF[0]));
 
@@ -25,7 +24,7 @@ pub fn read_to_crlf(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>>
 }
 
 /// Recursive function to read an http header from a stream
-pub fn read_to_header_end(stream: &mut BufferedStream<TcpStream>) -> IoResult<Vec<u8>> {
+pub fn read_to_header_end<A: Buffer>(stream: &mut A) -> IoResult<Vec<u8>> {
     // Read to CRLF
     let mut read_bytes = try!(read_to_crlf(stream));
 

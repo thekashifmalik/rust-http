@@ -1,20 +1,22 @@
+use std::ascii::AsciiExt;
+use std::collections::HashMap;
+use std::collections::hash_map::Entries;
 use std::from_str::FromStr;
 use std::fmt::{Show, Formatter, FormatError};
-use std::ascii::AsciiExt;
 
-pub struct Header {
-    pub key: String,
-    pub value: String,
+use http_url::HttpUrl;
+
+
+type Header = (String, String);
+
+pub struct Headers {
+    data: HashMap<String, String>,
 }
 
-impl Show for Header {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
-        write!(fmt, "{}: {}", self.key, self.value)
-    }
-}
 
-impl FromStr for Header {
-    fn from_str(string: &str) -> Option<Header> {
+impl Headers {
+
+    fn parse_header(string: &str) -> Option<Header> {
 
         let header_vector: Vec<&str> = string.splitn(1, ':').collect();
 
@@ -22,45 +24,50 @@ impl FromStr for Header {
             return None;
         }
 
-        Some(Header {
-            key: header_vector[0].trim_left().to_ascii_lower(),
-            value: header_vector[1].trim().to_string(),
-        })
-    }
-}
-
-pub struct Headers {
-    pub vector: Vec<Header>
-}
-
-
-impl Headers {
-    pub fn from_vector(headers_vector: Vec<Header>) -> Headers {
-        Headers {vector: headers_vector}
+        Some((
+            header_vector[0].trim_left().to_ascii_lower(),
+            header_vector[1].trim().to_string(),
+        ))
     }
 
-    pub fn find(&self, key: &str) -> Option<&str> {
-        for header in self.vector.iter() {
-
-            let lower_case_target_key = key.to_ascii_lower();
-
-            if lower_case_target_key == header.key {
-                return Some(header.value.as_slice());
-            }
+    pub fn from_map(headers_map: HashMap<&str, &str>) -> Headers {
+        let mut headers = Headers::new();
+        for (&key, &value) in headers_map.iter() {
+            headers.insert(key, value);
         }
-        return None;
+        headers
     }
 
-    pub fn get(&self, key: &str) -> &str {
-        self.find(key).expect("")
+    pub fn new() -> Headers {
+        Headers {
+            data: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, key: &str) -> Option<&String> {
+        let case_insensitive_key = key.to_ascii_lower();
+        self.data.get(&case_insensitive_key)
+    }
+
+    pub fn insert(&mut self, key: &str, value: &str) -> Option<String> {
+        let case_insensitive_key = key.to_ascii_lower();
+        self.data.insert(case_insensitive_key, value.to_string())
+    }
+
+    pub fn len(&self) -> uint {
+        self.data.len()
+    }
+
+    pub fn iter(&self) -> Entries<String, String> {
+        self.data.iter()
     }
 }
 
 
 impl Show for Headers {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
-        for header in self.vector.iter() {
-            try!(write!(fmt, "{}\r\n", *header));
+        for (key, value) in self.iter() {
+            try!(write!(fmt, "{}: {}\r\n", key, value));
         }
         Ok(())
     }
@@ -69,14 +76,37 @@ impl Show for Headers {
 impl FromStr for Headers {
     fn from_str(string: &str) -> Option<Headers> {
 
-        let header_string_vector: Vec<&str> = string.trim().lines().collect();
+        let mut headers = Headers::new();
 
-        if header_string_vector.len() == 0 {
-            return None;
+        for line in string.trim().lines() {
+            if let Some((key, value)) = Headers::parse_header(line) {
+                headers.insert(key[], value[]);
+            }
         }
 
-        let headers_vector: Vec<Header> = header_string_vector.iter().filter_map(|&x| { from_str(x) }).collect();
-        Some(Headers::from_vector(headers_vector))
+        if headers.len() == 0 {
+            return None;
+        } else {
+            return Some(headers)
+        }
+
     }
 }
 
+
+
+pub fn make_default_headers(http_url: &HttpUrl) -> Headers {
+    let mut headers = Headers::new();
+
+    // Add host
+    let host = match http_url.port {
+        Some(p) => format!("{}:{}", http_url.host, p.to_string()),
+        None => format!("{}", http_url.host),
+    };
+    headers.insert("HOST", host[]);
+
+    // Add Server
+    headers.insert("SERVER", "Rust/httpc/0.1");
+
+    headers
+}
