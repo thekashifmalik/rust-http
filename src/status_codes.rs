@@ -4,7 +4,7 @@ const CREATED_BYTES: &'static [u8] = b"201";
 const NOT_FOUND_BYTES: &'static [u8] = b"404";
 
 
-#[deriving(Show)]
+#[deriving(Show, PartialEq)]
 pub enum StatusCode {
     OK = 200,
     CREATED = 201,
