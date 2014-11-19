@@ -24,7 +24,9 @@ mod messages;
 
 
 const HTTP_VERSION: &'static [u8] = b"HTTP/1.0";
-const CRLF: &'static [u8] = b"\r\n";
+const CR: u8 = b'\r';
+const LF: u8 = b'\n';
+const CRLF: &'static [u8] = [CR, LF];
 const STATUS_LINE_SEPERATOR: &'static [u8] = b" ";
 
 const DEFAULT_HTTP_PORT: u16 = 80;
@@ -32,7 +34,7 @@ const DEFAULT_HTTPS_PORT: u16 = 443;
 
 
 
-fn request(method: methods::Method, address: &str, headers: Option<&Headers>) -> Result<Response, ()>{
+fn make_request(method: methods::Method, address: &str, headers: Option<&Headers>) -> Result<Response, ()>{
     // Parse URL
     let http_url = try!(HttpUrl::from_str(address));
     let request = Request::new(method, &http_url, headers);
@@ -42,18 +44,17 @@ fn request(method: methods::Method, address: &str, headers: Option<&Headers>) ->
         Some(x) => x,
         None => if http_url.scheme.as_slice() == "https" { DEFAULT_HTTPS_PORT } else { DEFAULT_HTTP_PORT },
     };
-    let connection = try!(Connection::new((http_url.host[], port)).map_err(|_| {()}));
-    let mut session = try!(Transaction::new(connection).map_err(|_| {()}));
 
-    // session::make_request(method, headers,)
+    let mut buffer = Vec::new();
+    let mut connection = try!(Connection::new((http_url.host[], port)).map_err(|_| {()}));
+    let transaction = try!(Transaction::new(&mut connection, &mut buffer).map_err(|_| {()}));
 
     // Send data
     let payload = request.to_bytes();
-    let start = time::precise_time_s();
-    try!(session.write(payload[]).map_err(|_| {()}));
 
-    // Read data
-    let msg_bytes = optional_try!(session.read().ok());
+    // Perform transaction
+    let start = time::precise_time_s();
+    let msg_bytes = try!(transaction.perform(payload[]).map_err(|_| {()}));
     let elapsed = time::precise_time_s() - start;
 
     // Parse
@@ -72,9 +73,9 @@ fn request(method: methods::Method, address: &str, headers: Option<&Headers>) ->
 
 
 pub fn get(address: &str, headers: Option<&Headers>) -> Result<Response, ()> {
-    request(methods::GET, address, headers)
+    make_request(methods::GET, address, headers)
 }
 
 pub fn post(address: &str, headers: Option<&Headers>) -> Result<Response, ()> {
-    request(methods::POST, address, headers)
+    make_request(methods::POST, address, headers)
 }

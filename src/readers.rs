@@ -1,46 +1,70 @@
 use std::io::{
     IoResult,
-    Buffer,
+    Reader,
 };
 
+use CR;
+use LF;
 use CRLF;
 
 
-/// Recursive function to read up to CRLF from a stream
-pub fn read_to_crlf<A: Buffer>(stream: &mut A) -> IoResult<Vec<u8>> {
-    // Read to start of CRLF
-    let mut read_bytes = try!(stream.read_until(CRLF[0]));
+/// Custom read_until implementation that does not allocate
+// TODO: Add timeout
+fn fill_buffer_until<A: Reader>(target: u8, reader: &mut A, buffer: &mut Vec<u8>) -> IoResult<()> {
+    loop {
+        // Read and push byte
+        buffer.push(try!(reader.read_byte()));
 
-    // Read and add next byte
-    let next_byte = try!(stream.read_byte());
-    read_bytes.push(next_byte);
-
-    // Keep searching (Recursion)
-    if next_byte != CRLF[1] {
-        read_bytes.extend(try!(read_to_crlf(stream)).into_iter());
+        // Check if byte matches target
+        if buffer[buffer.len() - 1] == target {
+            return Ok(());
+        }
     }
-
-    Ok(read_bytes)
 }
 
-/// Recursive function to read an http header from a stream
-pub fn read_to_header_end<A: Buffer>(stream: &mut A) -> IoResult<Vec<u8>> {
-    // Read to CRLF
-    let mut read_bytes = try!(read_to_crlf(stream));
+/// Recursive function to read up to CRLF from a reader into a buffer
+pub fn fill_buffer_to_crlf<A: Reader>(reader: &mut A, buffer: &mut Vec<u8>) -> IoResult<()> {
+    // Read to start of CRLF
+    try!(fill_buffer_until(CR, reader, buffer));
 
-    // Reached end of header
-    if read_bytes[] == CRLF {
-        return Ok(read_bytes);
-    }
-
-    // Read to next CRLF and add to read bytes
-    let next_bytes = try!(read_to_crlf(stream));
-    read_bytes.extend(next_bytes.iter().map(|&x| x));
+    // Read and add next byte
+    let next_byte = try!(reader.read_byte());
+    buffer.push(next_byte);
 
     // Keep searching (Recursion)
-    if next_bytes[] != CRLF {
-        read_bytes.extend(try!(read_to_header_end(stream)).into_iter());
+    if next_byte != LF {
+        try!(fill_buffer_to_crlf(reader, buffer));
     }
 
-    Ok(read_bytes)
+    Ok(())
+}
+
+/// Recursive function to read up to the end of an HTTP header from a reader into a buffer
+pub fn fill_buffer_to_header_end<A: Reader>(reader: &mut A, buffer: &mut Vec<u8>) -> IoResult<()> {
+    // Read to CRLF
+    let offset = buffer.len();
+    try!(fill_buffer_to_crlf(reader, buffer));
+
+    // Reached end of header
+    if buffer[offset..] == CRLF {
+        return Ok(());
+    }
+
+    // Read to next CRLF
+    let second_offset = buffer.len();
+    try!(fill_buffer_to_crlf(reader, buffer));
+
+    // Keep searching (Recursion)
+    if buffer[second_offset..] != CRLF {
+        try!(fill_buffer_to_header_end(reader, buffer));
+    }
+
+    Ok(())
+}
+
+
+
+pub trait HttpReader: Reader {
+    fn read_header(&mut self, vector: &mut Vec<u8>) -> IoResult<uint>;
+    fn read_response(&mut self, vector: &mut Vec<u8>) -> IoResult<uint>;
 }
