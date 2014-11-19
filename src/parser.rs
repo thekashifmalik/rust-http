@@ -21,8 +21,18 @@ pub struct HttpMessage {
 }
 
 
+const SPACE_BYTE: u8 = b' ';
+
+
+fn is_space_byte(&byte: &u8) -> bool {
+    if byte == SPACE_BYTE {
+        true
+    } else {
+        false
+    }
+}
+
 pub fn parse_header(message_bytes: &HttpMessageBytes) -> Option<HttpHeader> {
-    let is_space_byte = | byte: &u8 | { if *byte == ' ' as u8 { true } else { false } };
     let status_vector: Vec<&[u8]> = message_bytes.get_start_line_bytes().splitn(2, is_space_byte).collect();
 
     if status_vector.len() != 3 {
