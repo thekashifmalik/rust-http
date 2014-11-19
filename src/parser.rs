@@ -2,7 +2,7 @@
 use std::from_str::from_str;
 use std::str::from_utf8;
 use super::headers::Headers;
-use transactions::{HttpHeaderBytes, HttpMessageBytes};
+use transactions::HttpMessageBytes;
 
 
 #[deriving(Show)]
@@ -21,9 +21,9 @@ pub struct HttpMessage {
 }
 
 
-pub fn parse_header(header: HttpHeaderBytes) -> Option<HttpHeader> {
+pub fn parse_header(message_bytes: &HttpMessageBytes) -> Option<HttpHeader> {
     let is_space_byte = | byte: &u8 | { if *byte == ' ' as u8 { true } else { false } };
-    let status_vector: Vec<&[u8]> = header.start_line.as_slice().splitn(2, is_space_byte).collect();
+    let status_vector: Vec<&[u8]> = message_bytes.get_start_line_bytes().splitn(2, is_space_byte).collect();
 
     if status_vector.len() != 3 {
         return None;
@@ -35,7 +35,7 @@ pub fn parse_header(header: HttpHeaderBytes) -> Option<HttpHeader> {
         status_vector[0].to_vec(),
     );
 
-    let headers: Headers = optional!(from_str(optional!(from_utf8(header.headers.as_slice()))));
+    let headers: Headers = optional!(from_str(optional!(from_utf8(message_bytes.get_headers_bytes()))));
 
     Some(HttpHeader {
         start_line: status_line,
@@ -45,7 +45,7 @@ pub fn parse_header(header: HttpHeaderBytes) -> Option<HttpHeader> {
 
 pub fn parse_response(message_bytes: HttpMessageBytes) -> Option<HttpMessage> {
     Some(HttpMessage {
-        header: optional!(parse_header(message_bytes.header)),
-        body: message_bytes.body,
+        header: optional!(parse_header(&message_bytes)),
+        body: message_bytes.get_body_bytes().to_vec(),
     })
 }

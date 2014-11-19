@@ -54,11 +54,11 @@ fn make_request(method: methods::Method, address: &str, headers: Option<&Headers
 
     // Perform transaction
     let start = time::precise_time_s();
-    let msg_bytes = try!(transaction.perform(payload[]).map_err(|_| {()}));
+    let message_bytes = try!(transaction.perform(payload[]).map_err(|_| {()}));
     let elapsed = time::precise_time_s() - start;
 
     // Parse
-    let http_msg = optional_try!(parser::parse_response(msg_bytes));
+    let http_msg = optional_try!(parser::parse_response(message_bytes));
 
     // Create response
     let response = match Response::from_bytes(&http_url, http_msg) {
