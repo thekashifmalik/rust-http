@@ -87,7 +87,7 @@ impl FromStr for Headers {
         if headers.len() == 0 {
             return None;
         } else {
-            return Some(headers)
+            return Some(headers);
         }
 
     }
