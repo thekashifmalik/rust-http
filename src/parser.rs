@@ -1,6 +1,9 @@
 
-use std::from_str::from_str;
-use std::str::from_utf8;
+use std::str::{
+    from_utf8,
+    from_str,
+};
+
 use super::headers::Headers;
 use transactions::HttpMessageBytes;
 

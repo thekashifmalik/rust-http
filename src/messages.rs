@@ -39,17 +39,24 @@ impl Request {
 
 
     pub fn to_bytes(&self) -> Vec<u8> {
+        // TODO: Remove allocation
         let mut buffer = Vec::new();
+
+        // Status line
         buffer.push_all(self.method.to_bytes());
         buffer.push_all(STATUS_LINE_SEPERATOR);
         buffer.push_all(self.path.clone().into_bytes()[]);
         buffer.push_all(STATUS_LINE_SEPERATOR);
         buffer.push_all(HTTP_VERSION);
         buffer.push_all(CRLF);
+
+        // Headers
         buffer.push_all(self.headers.to_string().into_bytes()[]);
         buffer.push_all(CRLF);
 
-        // println!("Sent:\n{}", buffer.len());
+        // TODO: Body
+
+        info!("Sent: {} bytes", buffer.len());
         return buffer
     }
 

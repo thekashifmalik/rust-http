@@ -61,10 +61,3 @@ pub fn fill_buffer_to_header_end<A: Reader>(reader: &mut A, buffer: &mut Vec<u8>
 
     Ok(())
 }
-
-
-
-pub trait HttpReader: Reader {
-    fn read_header(&mut self, vector: &mut Vec<u8>) -> IoResult<uint>;
-    fn read_response(&mut self, vector: &mut Vec<u8>) -> IoResult<uint>;
-}

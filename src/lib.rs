@@ -1,9 +1,9 @@
-#![feature(macro_rules, struct_variant, slicing_syntax, phase, if_let, tuple_indexing)]
-
+#![feature(macro_rules, slicing_syntax, phase, if_let, tuple_indexing, globs)]
 extern crate serialize;
 extern crate time;
+#[phase(plugin, link)] extern crate log;
 
-use std::from_str::from_str;
+use std::str::from_str;
 
 pub use headers::Headers;
 use transactions::Transaction;
@@ -26,7 +26,7 @@ mod messages;
 const HTTP_VERSION: &'static [u8] = b"HTTP/1.0";
 const CR: u8 = b'\r';
 const LF: u8 = b'\n';
-const CRLF: &'static [u8] = [CR, LF];
+const CRLF: &'static [u8] = &[CR, LF];
 const STATUS_LINE_SEPERATOR: &'static [u8] = b" ";
 
 const DEFAULT_HTTP_PORT: u16 = 80;

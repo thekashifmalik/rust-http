@@ -1,15 +1,18 @@
 use std::ascii::AsciiExt;
 use std::collections::HashMap;
 use std::collections::hash_map::Entries;
-use std::from_str::FromStr;
-use std::fmt::{Show, Formatter, FormatError};
+use std::str::FromStr;
+use std::fmt::{Show, Formatter, Error};
 
 use http_url::HttpUrl;
 
 
+// TODO: Maybe convert to a struct?
 type Header = (String, String);
 
 pub struct Headers {
+    // TODO: Expose map interface on internal vector of headers
+    // data: Vec<Header>
     data: HashMap<String, String>,
 }
 
@@ -65,7 +68,7 @@ impl Headers {
 
 
 impl Show for Headers {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         for (key, value) in self.iter() {
             try!(write!(fmt, "{}: {}\r\n", key, value));
         }

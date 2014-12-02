@@ -17,12 +17,14 @@ impl<'a> HttpUrl<'a> {
 
     pub fn from_str(url_string: &str) -> Result<HttpUrl, ()> {
         // Parse URL
+        // TODO: Remove any allocation from Url::parse
         let url = try!(Url::parse(url_string).map_err(|_| {()}));
 
         // Check scheme
-        if url.scheme.as_slice() != "http" && url.scheme.as_slice() != "https" {
-            return Err(());
-        }
+        let scheme = match Scheme::new(url.scheme[]) {
+            Some(a) => a,
+            None => return Err(()),
+        };
 
         // Check host
         let host = match url.domain() {
@@ -43,5 +45,28 @@ impl<'a> HttpUrl<'a> {
             scheme: url.scheme,
             path: path,
         })
+    }
+}
+
+
+enum Scheme {
+    HTTP,
+    HTTPS,
+}
+
+impl Scheme {
+    pub fn new(slice: &str) -> Option<Scheme> {
+        match slice {
+            "http" => Some(Scheme::HTTP),
+            "https" => Some(Scheme::HTTPS),
+            _ => None,
+        }
+    }
+
+    pub fn default_port(&self) -> u16 {
+        match *self {
+            Scheme::HTTP => 80,
+            Scheme::HTTPS => 443,
+        }
     }
 }

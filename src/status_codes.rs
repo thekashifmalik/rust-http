@@ -1,4 +1,6 @@
 
+pub use self::StatusCode::*;
+
 const OK_BYTES: &'static [u8] = b"200";
 const CREATED_BYTES: &'static [u8] = b"201";
 const NOT_FOUND_BYTES: &'static [u8] = b"404";

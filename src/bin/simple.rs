@@ -9,8 +9,8 @@ fn main() {
     headers.insert("Accept-Encoding", "gzip");
     headers.insert("lol", "gzip");
 
-    // Make request
-    let response = match http::get("http://localhost:8000", Some(&headers)) {
+    // Make simple request
+    let response = match http::get("http://localhost:13000/test", Some(&headers)) {
         Ok(resp) => resp,
         _        => panic!("There was a problem making the request"),
     };
@@ -20,4 +20,6 @@ fn main() {
         println!("Time: {}", response.headers.get("date"))
         println!("Header: {}", response.headers.get("x-custom-header"))
     }
+
 }
+

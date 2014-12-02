@@ -1,4 +1,5 @@
 
+pub use self::Method::*;
 
 const HEAD_BYTES: &'static [u8] = b"HEAD";
 const GET_BYTES: &'static [u8] = b"GET";
